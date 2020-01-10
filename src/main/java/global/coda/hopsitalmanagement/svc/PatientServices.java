@@ -1,182 +1,316 @@
 package global.coda.hopsitalmanagement.svc;
 
-import java.io.FileReader;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.ResourceBundle;
-import java.util.Scanner;
+import java.sql.SQLException;
+import java.util.*;
 
+import global.coda.hopsitalmanagement.dao.impl.DoctorDbDaoImpl;
+import global.coda.hopsitalmanagement.enums.ImplEnum;
+import global.coda.hopsitalmanagement.exception.FileNotPresentException;
+import global.coda.hopsitalmanagement.patientdetails.model.Doctor;
 import org.apache.log4j.Logger;
 
-import com.opencsv.CSVReader;
-import com.opencsv.CSVWriter;
+import global.coda.hopsitalmanagement.applicationconstants.Constants;
+import global.coda.hopsitalmanagement.exception.InvalidException;
+import global.coda.hopsitalmanagement.dao.CsvAccess;
+import global.coda.hopsitalmanagement.dao.impl.CsvAccessimpl;
+import global.coda.hopsitalmanagement.patientdetails.model.Patient;
+import global.coda.hopsitalmanagement.dao.impl.PatientDbDaoImpl;
 
-import global.coda.exception.InvalidException;
-import global.coda.patientdetails.model.Patient;
-
+/**
+ * The type Patient services.
+ */
 public class PatientServices {
-	private static final ResourceBundle LOCAL_MESSAGES_BUNDLE = ResourceBundle.getBundle("messages",
-			Locale.getDefault());
+    private static final ResourceBundle LOCAL_MESSAGES_BUNDLE = ResourceBundle.getBundle("messages",
+            Locale.getDefault());
+    private static String CSV_FILE_PATH;
 
-	public static Patient create(int id, int age, String name, List<String> address, String csv)
-			throws InvalidException, IOException {
-		Logger logger = Logger.getLogger(PatientServices.class);
-		Patient arr = new Patient();
+    private Scanner sc = new Scanner(System.in);
+    private CsvAccess csvDaoObj = new CsvAccessimpl();
 
-		// arr.PatientAdd(age, name, address);
+    private PatientDbDaoImpl patientDb;
 
-		arr.setAddress(address);
-		arr.setAge(age);
-		arr.setName(name);
-		arr.setId(id);
 
-		FileWriter fileWriter = new FileWriter(csv, true);
-		fileWriter.append(arr.toString() + "\n");
-		fileWriter.flush();
-		fileWriter.close();
-		logger.info("Patient List Inserted Successfully");
-		return arr;
-	}
+    {
+        try {
+            patientDb = new PatientDbDaoImpl();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
-	public static Boolean read(Map<Integer, Object> map, String file) {
-		Logger logger = Logger.getLogger(PatientServices.class);
-		try {
+    private Logger logger = Logger.getLogger(PatientServices.class);
+    private Map<Integer, Object> map = new HashMap<Integer, Object>();
+    /**
+     * The Flow.
+     */
+    private  ImplEnum flow;
 
-			// Create an object of filereader class
-			// with CSV file as a parameter.
-			FileReader filereader = new FileReader(file);
+    /**
+     * Instantiates a new Patient services.
+     *
+     * @param csv   the csv
+     * @param flows the flows
+     */
+    public PatientServices(String csv, ImplEnum flows) {
+        try {
+            //Set Flow
+            flow = flows;
+            //Setting Path
+            if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS12))) {
+                CSV_FILE_PATH = csv;
+                map = csvDaoObj.initialRead(CSV_FILE_PATH);
+            }
 
-			// create csvReader object passing
-			// filereader as parameter
-			CSVReader csvReader = new CSVReader(filereader);
-			String[] nextRecord;
 
-			// we are going to read data line by line
-			while ((nextRecord = csvReader.readNext()) != null) {
-				for (String cell : nextRecord) {
-					System.out.print(cell + "\t");
-				}
-				System.out.println();
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return true;
-	}
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (FileNotPresentException e) {
+            e.printStackTrace();
+        }
 
-	public static Boolean readParticular(Map<Integer, Object> map, int id) {
-		Logger logger = Logger.getLogger(PatientServices.class);
-		// Elements can traverse in any order
-		for (Map.Entry m : map.entrySet()) {
-			if (m.getKey().equals(id))
-				logger.info(m.getKey() + " " + m.getValue());
-		}
-		return true;
-	}
+    }
 
+
+    /**
+     * Create patient patient.
+     *
+     * @param CSV_FILE_PATH the csv file path
+     * @param patient       the patient
+     * @return the patient
+     * @throws InvalidException the invalid exception
+     * @throws IOException      the io exception
+     */
+    public Patient createPatient(String CSV_FILE_PATH, Patient patient)
+            throws InvalidException, IOException {
+
+
+        if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS12))) {
+
+            List<Integer> idList = new ArrayList<Integer>();
+            //Reads id's from the files and store
+            idList = csvDaoObj.initiate(CSV_FILE_PATH);
+
+
+//            if (idList != null) {
+//                for (int i = 0; i < idList.size(); i++) {
+//                    if (idList.get(i) == id)
+//                        throw new InvalidException(LOCAL_MESSAGES_BUNDLE.getString(Constants.EX2));
+//
+//                }
+//            }
+
+
+            //Storing into the CSV file using DAO layer...
+            csvDaoObj.create(patient, CSV_FILE_PATH);
+
+        } else if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS13))) {
+            try {
+                if (patientDb.insert(patient)) {
+                    logger.info(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS18));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+
+        return patient;
+    }
+
+    /**
+     * Read all patient list.
+     *
+     * @param CSV_FILE_PATH the csv file path
+     * @param patient       the patient
+     * @return the list
+     * @throws FileNotFoundException the file not found exception
+     */
+    public List<Patient> readAllPatient(String CSV_FILE_PATH, Patient patient) throws FileNotFoundException {
+        List<Patient> patientList = new ArrayList<>();
+
+        if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS12))) {
+
+            csvDaoObj.read(CSV_FILE_PATH);
+        } else if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS13))) {
+
+            try {
+                patientList = patientDb.readAll();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        return patientList;
+    }
+
+    /**
+     * Read particular patient patient.
+     *
+     * @param patient the patient
+     * @return the patient
+     * @throws InvalidException the invalid exception
+     */
+    public Patient readParticularPatient(Patient patient) throws InvalidException {
+        // Elements can traverse in any order
+        if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS12))) {
+
+            boolean foundId = false;
+            for (Map.Entry m : map.entrySet()) {
+                if ((int) m.getKey() == patient.getId()) {
+                    foundId = true;
+                    logger.info(m.getKey() + " " + m.getValue());
+                }
+            }
+            if (!foundId) {
+                throw new InvalidException(LOCAL_MESSAGES_BUNDLE.getString(Constants.EX6));
+            }
+        } else if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS13))) {
+            try {
+                patient = patientDb.read(patient.getUserId(), patient);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+        }
+        return patient;
+    }
+
+    /**
+     * Update patient patient.
+     *
+     * @param CSV_FILE_PATH the csv file path
+     * @param patient       the patient
+     * @return the patient
+     * @throws IOException      the io exception
+     * @throws InvalidException the invalid exception
+     */
 //Update Using Map
-	public static void update(Map<Integer, Object> map, String csv) throws IOException {
-		Logger logger = Logger.getLogger(PatientServices.class);
-		Scanner sc = new Scanner(System.in);
+    public Patient updatePatient(String CSV_FILE_PATH, Patient patient) throws IOException, InvalidException {
+        Boolean foundId = false;
 
-		logger.info("Update Patients");
-		logger.info("Enter Unique ID Of Patient To Update");
-		int uid = sc.nextInt();
-		List<String> address = new ArrayList<>();
-		FileWriter fileWriter = new FileWriter(csv);
-//		  fileWriter.flush();
+        if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS12))) {
 
-		fileWriter.close();
-		CSVWriter writer = new CSVWriter(new FileWriter(csv, true));
-		List<String[]> data = new ArrayList<String[]>();
-		data.add(new String[] { "ID", "NAME", "AGE", "LOCATION" });
+            List<String> address = new ArrayList<>();
 
-		writer.writeAll(data);
-		writer.close();
 
-		for (Map.Entry m : map.entrySet()) {
-			Patient arr = (Patient) m.getValue();
+            for (Map.Entry iterator : map.entrySet()) {
+                Patient arr = (Patient) iterator.getValue();
 
-			if (m.getKey().equals(uid)) {
-				logger.info("Enter Name of patient ");
 
-				String name = sc.next();
-				arr.setName(name);
-				logger.info("Enter Age of patient ");
-				int age = sc.nextInt();
-				arr.setAge(age);
-				logger.info("Enter Age of Location 1 ");
-				String location = sc.next();
-				address.add(location);
-				logger.info("Enter Age of Location 2 ");
-				location = sc.next();
-				address.add(location);
-				logger.info("Enter Age of Location 3 ");
-				location = sc.next();
-				address.add(location);
-				arr.setAddress(address);
-//				arr=new Patient();
-//				arr.PatientAdd(age, name,address);
+//                if ((int) iterator.getKey() == id) {
+//                    foundId = true;
+//                    logger.info(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS8));
+//                }
 
-				logger.info("Patient List Updated Successfully");
-			}
 
-			// logger.info(m.getKey()+" "+m.getValue());
-		}
-		FileWriter fileWriter1 = new FileWriter(csv, true);
+            }
+            checkAndPush(CSV_FILE_PATH, foundId);
+        } else if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS13))) {
+            try {
 
-		for (Map.Entry i : map.entrySet()) {
-			Patient arr = (Patient) i.getValue();
-			fileWriter1.append(arr.toString() + "\n");
 
-		}
-		fileWriter1.close();
+                if (patientDb.update(patient)) {
+                    logger.info(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS19));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
 
-	}
+        }
+        return patient;
+    }
 
-	public static void delete(Map<Integer, Object> map, String csv) throws IOException {
-		Logger logger = Logger.getLogger(PatientServices.class);
-		Scanner sc = new Scanner(System.in);
-		List<String> address = new ArrayList<>();
-		FileWriter fileWriter = new FileWriter(csv);
-//		  fileWriter.flush();
+    /**
+     * Delete patient boolean.
+     *
+     * @param CSV_FILE_PATH the csv file path
+     * @param userId        the user id
+     * @param patient       the patient
+     * @return the boolean
+     * @throws IOException      the io exception
+     * @throws InvalidException the invalid exception
+     */
+    public Boolean deletePatient(String CSV_FILE_PATH, int userId, Patient patient) throws IOException, InvalidException {
+        Boolean bool;
+        if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS12))) {
 
-		fileWriter.close();
-		CSVWriter writer = new CSVWriter(new FileWriter(csv, true));
-		List<String[]> data = new ArrayList<String[]>();
-		data.add(new String[] { "ID", "NAME", "AGE", "LOCATION" });
+            boolean foundId = false;
+            Patient arr;
+            //defaultWrites For Heading Row
+            csvDaoObj.defaultWrites(CSV_FILE_PATH);
 
-		writer.writeAll(data);
-		writer.close();
 
-		logger.info("Delete Patients");
-		logger.info("Enter Unique ID Of Patient To Delete");
-		int uid = sc.nextInt();
-		for (Map.Entry m : map.entrySet()) {
-			Patient arr = (Patient) m.getValue();
+            Iterator mapIterator = map.entrySet().iterator();
+            while (mapIterator.hasNext()) {
+                Map.Entry mapElement = (Map.Entry) mapIterator.next();
+                if ((int) mapElement.getKey() == userId) {
+                    foundId = true;
+                    mapIterator.remove();
+                    logger.info(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS11));
+                }
+            }
 
-			if (m.getKey().equals(uid)) {
+            checkAndPush(CSV_FILE_PATH, foundId);
+        } else if (flow.toString().equals(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS13))) {
+            try {
 
-				map.remove(uid);
 
-				logger.info("Patient List Deleted Successfully");
-			}
+                if (patientDb.delete(userId, patient)) {
+                    bool = true;
+                    logger.info(LOCAL_MESSAGES_BUNDLE.getString(Constants.PS19));
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
 
-			// logger.info(m.getKey()+" "+m.getValue());
-		}
-		FileWriter fileWriter1 = new FileWriter(csv, true);
+        }
+        return true;
+    }
 
-		for (Map.Entry i : map.entrySet()) {
-			Patient arr = (Patient) i.getValue();
-			fileWriter1.append(arr.toString() + "\n");
+    /**
+     * Read all doctors list.
+     *
+     * @return the list
+     */
+    public List<Doctor> readAllDoctors() {
+        DoctorDbDaoImpl doctorDbDao = new DoctorDbDaoImpl();
+        List<Doctor> doctorList = new ArrayList<>();
+        try {
+            doctorList = doctorDbDao.readAllWithMaskedDetails();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return doctorList;
+    }
 
-		}
-		fileWriter1.close();
+    /**
+     * Check and push.
+     *
+     * @param CSV_FILE_PATH the csv file path
+     * @param foundId       the found id
+     * @throws IOException      the io exception
+     * @throws InvalidException the invalid exception
+     */
+    public void checkAndPush(String CSV_FILE_PATH, boolean foundId) throws IOException, InvalidException {
+        if (!foundId) {
+            throw new InvalidException(LOCAL_MESSAGES_BUNDLE.getString(Constants.EX6));
+        } else {
+            //DELETING EXISTING FILE
+            FileWriter fileWriter = new FileWriter(CSV_FILE_PATH);
+            fileWriter.close();
+            FileWriter fileWriter1 = new FileWriter(CSV_FILE_PATH, true);
 
-	}
+            for (Map.Entry i : map.entrySet()) {
+                Patient arr = (Patient) i.getValue();
+                csvDaoObj.create(arr, CSV_FILE_PATH);
 
+            }
+            fileWriter1.close();
+        }
+    }
 }

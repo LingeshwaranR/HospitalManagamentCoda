@@ -3,11 +3,11 @@
 <suite name="Failed suite [Default suite]" guice-stage="DEVELOPMENT">
   <test thread-count="5" name="Default test(failed)">
     <classes>
-      <class name="global.coda.hopsitalmanagement.svc.CreatePatientsTest">
+      <class name="global.coda.hopsitalmanagement.svc.services.PatientsTest">
         <methods>
           <include name="testReadpatients"/>
         </methods>
-      </class> <!-- global.coda.hopsitalmanagement.svc.CreatePatientsTest -->
+      </class> <!-- global.coda.hopsitalmanagement.svc.services.PatientsTest -->
     </classes>
   </test> <!-- Default test(failed) -->
 </suite> <!-- Failed suite [Default suite] -->
